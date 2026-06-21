@@ -17,18 +17,23 @@ function startsWithLowercase(name: string): boolean {
 
 // ── audit ─────────────────────────────────────────────────────────────────────
 
-function runAudit() {
+async function runAudit() {
   const linked: { id: string; name: string; page: string }[] = [];
   const detached: { id: string; name: string; page: string }[] = [];
   const local: { id: string; name: string; page: string }[] = [];
+
+  // dynamic-page mode: pages must be loaded before findAll works on them
+  await figma.loadAllPagesAsync();
 
   for (const page of figma.root.children) {
     const instances = page.findAll(n => n.type === 'INSTANCE') as InstanceNode[];
     for (const inst of instances) {
       const entry = { id: inst.id, name: inst.name, page: page.name };
-      if (!inst.mainComponent) {
+      // mainComponent getter is sync but the async variant is required in dynamic-page mode
+      const main = await inst.getMainComponentAsync();
+      if (!main) {
         detached.push(entry);
-      } else if (inst.mainComponent.remote) {
+      } else if (main.remote) {
         linked.push(entry);
       } else {
         local.push(entry);
@@ -41,8 +46,10 @@ function runAudit() {
 
 // ── naming ────────────────────────────────────────────────────────────────────
 
-function runNamingCheck() {
+async function runNamingCheck() {
   const issues: { id: string; name: string; page: string; reasons: string[] }[] = [];
+
+  await figma.loadAllPagesAsync();
 
   for (const page of figma.root.children) {
     const nodes = page.findAll(n =>
@@ -71,6 +78,8 @@ async function searchComponents(query: string) {
   // Search available components in the document and imported libraries
   const allComponents: { key: string; name: string; source: string }[] = [];
 
+  await figma.loadAllPagesAsync();
+
   // Local components
   const localComps = figma.root.findAll(n => n.type === 'COMPONENT') as ComponentNode[];
   for (const c of localComps) {
@@ -88,7 +97,7 @@ async function swapComponents(nodeIds: string[], componentKey: string) {
     let swapped = 0;
 
     for (const id of nodeIds) {
-      const node = figma.getNodeById(id);
+      const node = await figma.getNodeByIdAsync(id);
       if (!node) continue;
 
       if (node.type === 'INSTANCE') {
@@ -117,12 +126,12 @@ async function swapComponents(nodeIds: string[], componentKey: string) {
 
 // ── zoom to node ──────────────────────────────────────────────────────────────
 
-function zoomToNode(nodeId: string, pageName: string) {
+async function zoomToNode(nodeId: string, pageName: string) {
   const page = figma.root.children.find(p => p.name === pageName);
   if (page) {
-    figma.currentPage = page;
+    await figma.setCurrentPageAsync(page);
   }
-  const node = figma.getNodeById(nodeId) as SceneNode | null;
+  const node = await figma.getNodeByIdAsync(nodeId) as SceneNode | null;
   if (node) {
     figma.currentPage.selection = [node];
     figma.viewport.scrollAndZoomIntoView([node]);
@@ -148,10 +157,10 @@ figma.ui.onmessage = async (msg: {
 }) => {
   switch (msg.type) {
     case 'audit':
-      runAudit();
+      await runAudit();
       break;
     case 'naming-check':
-      runNamingCheck();
+      await runNamingCheck();
       break;
     case 'get-selection':
       sendSelection();
@@ -163,10 +172,7 @@ figma.ui.onmessage = async (msg: {
       await swapComponents(msg.nodeIds || [], msg.componentKey || '');
       break;
     case 'zoom-to':
-      if (msg.nodeId && msg.pageName) zoomToNode(msg.nodeId, msg.pageName);
-      break;
-    case 'export-report':
-      runAudit();
+      if (msg.nodeId && msg.pageName) await zoomToNode(msg.nodeId, msg.pageName);
       break;
     case 'cancel':
       figma.closePlugin();
