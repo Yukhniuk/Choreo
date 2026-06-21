@@ -504,6 +504,18 @@ window.onmessage = (event) => {
       el.className = 'swap-result error';
       break;
     }
+    case 'error': {
+      // never leave a spinner hanging — surface the real failure
+      hideSpinner('audit');
+      hideSpinner('naming');
+      const targetId = msg.context === 'naming-check' ? 'naming-list' : 'audit-list';
+      const wrap = document.getElementById(targetId);
+      if (wrap) {
+        wrap.innerHTML = '<div class="empty" style="color:#c03a1a">⚠️ ' + esc(msg.message) + '</div>';
+      }
+      showToast('Error: ' + msg.message);
+      break;
+    }
   }
 };
 
