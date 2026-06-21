@@ -155,27 +155,32 @@ figma.ui.onmessage = async (msg: {
   nodeIds?: string[];
   componentKey?: string;
 }) => {
-  switch (msg.type) {
-    case 'audit':
-      await runAudit();
-      break;
-    case 'naming-check':
-      await runNamingCheck();
-      break;
-    case 'get-selection':
-      sendSelection();
-      break;
-    case 'search-components':
-      await searchComponents(msg.query || '');
-      break;
-    case 'swap':
-      await swapComponents(msg.nodeIds || [], msg.componentKey || '');
-      break;
-    case 'zoom-to':
-      if (msg.nodeId && msg.pageName) await zoomToNode(msg.nodeId, msg.pageName);
-      break;
-    case 'cancel':
-      figma.closePlugin();
-      break;
+  try {
+    switch (msg.type) {
+      case 'audit':
+        await runAudit();
+        break;
+      case 'naming-check':
+        await runNamingCheck();
+        break;
+      case 'get-selection':
+        sendSelection();
+        break;
+      case 'search-components':
+        await searchComponents(msg.query || '');
+        break;
+      case 'swap':
+        await swapComponents(msg.nodeIds || [], msg.componentKey || '');
+        break;
+      case 'zoom-to':
+        if (msg.nodeId && msg.pageName) await zoomToNode(msg.nodeId, msg.pageName);
+        break;
+      case 'cancel':
+        figma.closePlugin();
+        break;
+    }
+  } catch (e) {
+    // Surface any failure to the UI so the spinner never hangs silently
+    figma.ui.postMessage({ type: 'error', context: msg.type, message: String(e) });
   }
 };
