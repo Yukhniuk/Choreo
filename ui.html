@@ -1,17 +1,526 @@
-<h2>Rectangle Creator</h2>
-<p>Count: <input id="count" type="number" value="5"></p>
-<button id="create">Create</button>
-<button id="cancel">Cancel</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Choreo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    font-size: 12px;
+    color: #1e1e1e;
+    background: #fff;
+    height: 560px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── header ── */
+  .header {
+    padding: 12px 16px 0;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  .header h1 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #1e1e1e;
+  }
+
+  /* ── tabs ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+  }
+  .tab {
+    padding: 7px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+    user-select: none;
+  }
+  .tab.active {
+    color: #1e1e1e;
+    border-bottom-color: #18a0fb;
+  }
+  .tab:hover:not(.active) { color: #333; }
+
+  /* ── panels ── */
+  .panels { flex: 1; overflow: hidden; }
+  .panel { display: none; flex-direction: column; height: 100%; padding: 14px 16px; overflow: hidden; }
+  .panel.active { display: flex; }
+
+  /* ── buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: background .15s, opacity .15s;
+  }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn-primary { background: #18a0fb; color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #0d8de3; }
+  .btn-ghost { background: transparent; color: #666; border: 1px solid #e0e0e0; }
+  .btn-ghost:hover:not(:disabled) { background: #f5f5f5; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+  /* ── stats row ── */
+  .stats-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .stat-card {
+    flex: 1; padding: 8px 10px; border-radius: 8px; text-align: center;
+    background: #f7f7f7;
+  }
+  .stat-card .num { font-size: 20px; font-weight: 700; }
+  .stat-card .lbl { font-size: 10px; color: #888; margin-top: 1px; }
+  .stat-card.green .num { color: #1bc47d; }
+  .stat-card.amber .num { color: #f5a623; }
+  .stat-card.red .num   { color: #f24e1e; }
+
+  /* ── list ── */
+  .list-wrap { flex: 1; overflow-y: auto; border: 1px solid #ececec; border-radius: 8px; }
+  .list-group-header {
+    padding: 6px 10px;
+    background: #f7f7f7;
+    font-weight: 600;
+    font-size: 11px;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    position: sticky;
+    top: 0;
+    border-bottom: 1px solid #ececec;
+  }
+  .list-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px;
+    border-bottom: 1px solid #f2f2f2;
+    gap: 8px;
+  }
+  .list-item:last-child { border-bottom: none; }
+  .list-item:hover { background: #fafafa; }
+  .item-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #1e1e1e;
+  }
+  .item-page { font-size: 10px; color: #aaa; white-space: nowrap; }
+
+  /* ── tags ── */
+  .tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .tag-green { background: #e6faf2; color: #1bc47d; }
+  .tag-amber { background: #fff8ec; color: #e0891a; }
+  .tag-red   { background: #fff0ec; color: #f24e1e; }
+  .tag-blue  { background: #e8f4ff; color: #18a0fb; }
+
+  /* ── empty / spinner ── */
+  .empty { color: #aaa; text-align: center; padding: 32px 0; font-size: 12px; }
+  .spinner {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2px solid #e0e0e0;
+    border-top-color: #18a0fb;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    margin: 0 auto;
+  }
+  .spinner.visible { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── section title ── */
+  .section-title {
+    font-size: 11px; font-weight: 600; color: #888;
+    text-transform: uppercase; letter-spacing: .04em;
+    margin-bottom: 8px;
+  }
+
+  /* ── toolbar ── */
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .toolbar .btn { flex-shrink: 0; }
+
+  /* ── search box ── */
+  .search-box {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 12px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .search-box:focus { border-color: #18a0fb; }
+
+  /* ── selection badge ── */
+  .sel-badge {
+    font-size: 11px; color: #888;
+    background: #f5f5f5;
+    padding: 5px 10px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+  }
+  .sel-badge b { color: #1e1e1e; }
+
+  /* ── swap result ── */
+  .swap-result {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-top: 10px;
+    display: none;
+  }
+  .swap-result.success { background: #e6faf2; color: #1a9e63; display: block; }
+  .swap-result.error   { background: #fff0ec; color: #c03a1a; display: block; }
+
+  /* ── export toast ── */
+  .toast {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    background: #1e1e1e; color: #fff;
+    padding: 7px 16px; border-radius: 20px;
+    font-size: 12px; opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+
+  .naming-reasons { font-size: 10px; color: #aaa; margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Choreo</h1>
+  <div class="tabs">
+    <div class="tab active" data-tab="audit">Audit</div>
+    <div class="tab" data-tab="naming">Naming</div>
+    <div class="tab" data-tab="swap">Swap</div>
+  </div>
+</div>
+
+<div class="panels">
+
+  <!-- ── AUDIT ── -->
+  <div class="panel active" id="panel-audit">
+    <div class="toolbar">
+      <button class="btn btn-primary" id="btn-audit">Scan components</button>
+      <div class="spinner" id="spinner-audit"></div>
+      <button class="btn btn-ghost btn-sm" id="btn-export" style="margin-left:auto">Export report</button>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card green"><div class="num" id="count-linked">–</div><div class="lbl">Linked ✅</div></div>
+      <div class="stat-card amber"><div class="num" id="count-detached">–</div><div class="lbl">Detached ⚠️</div></div>
+      <div class="stat-card red"><div class="num" id="count-local">–</div><div class="lbl">Local 🔴</div></div>
+    </div>
+
+    <div class="list-wrap" id="audit-list">
+      <div class="empty">Click "Scan components" to begin</div>
+    </div>
+  </div>
+
+  <!-- ── NAMING ── -->
+  <div class="panel" id="panel-naming">
+    <div class="toolbar">
+      <button class="btn btn-primary" id="btn-naming">Check names</button>
+      <div class="spinner" id="spinner-naming"></div>
+    </div>
+
+    <div class="list-wrap" id="naming-list">
+      <div class="empty">Click "Check names" to scan all layers</div>
+    </div>
+  </div>
+
+  <!-- ── SWAP ── -->
+  <div class="panel" id="panel-swap">
+    <div class="section-title">Selected nodes</div>
+    <div class="sel-badge" id="sel-badge">No nodes selected — select something on canvas first</div>
+
+    <button class="btn btn-ghost btn-sm" id="btn-refresh-sel" style="margin-bottom:12px;width:fit-content">↻ Refresh selection</button>
+
+    <div class="section-title">Find replacement component</div>
+    <input class="search-box" id="swap-search" placeholder="Type component name…" />
+
+    <div class="list-wrap" id="swap-results" style="margin-top:8px;max-height:180px;flex:unset">
+      <div class="empty">Search results appear here</div>
+    </div>
+
+    <button class="btn btn-primary" id="btn-swap" style="margin-top:12px;width:100%" disabled>Swap selected nodes</button>
+    <div class="swap-result" id="swap-result"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
+// ── state ────────────────────────────────────────────────────────────────────
+let auditData = { linked: [], detached: [], local: [] };
+let selectedNodes = [];
+let chosenComponentKey = null;
+let chosenComponentName = null;
 
-document.getElementById('create').onclick = () => {
-  const textbox = document.getElementById('count');
-  const count = parseInt(textbox.value, 10);
-  parent.postMessage({ pluginMessage: { type: 'create-shapes', count } }, '*')
+// ── tabs ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+
+    if (tab.dataset.tab === 'swap') refreshSelection();
+  });
+});
+
+// ── audit ─────────────────────────────────────────────────────────────────────
+document.getElementById('btn-audit').addEventListener('click', () => {
+  showSpinner('audit');
+  parent.postMessage({ pluginMessage: { type: 'audit' } }, '*');
+});
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  if (!auditData.linked.length && !auditData.detached.length && !auditData.local.length) {
+    showToast('Run a scan first');
+    return;
+  }
+  const lines = [
+    '=== Choreo Component Audit ===',
+    '',
+    `✅ Linked to library: ${auditData.linked.length}`,
+    ...auditData.linked.map(n => `  • ${n.name}  [${n.page}]`),
+    '',
+    `⚠️  Detached from library: ${auditData.detached.length}`,
+    ...auditData.detached.map(n => `  • ${n.name}  [${n.page}]`),
+    '',
+    `🔴 Local component: ${auditData.local.length}`,
+    ...auditData.local.map(n => `  • ${n.name}  [${n.page}]`),
+  ];
+  navigator.clipboard.writeText(lines.join('\n'));
+  showToast('Report copied to clipboard ✓');
+});
+
+function renderAudit(data) {
+  auditData = data;
+  document.getElementById('count-linked').textContent = data.linked.length;
+  document.getElementById('count-detached').textContent = data.detached.length;
+  document.getElementById('count-local').textContent = data.local.length;
+
+  const wrap = document.getElementById('audit-list');
+  wrap.innerHTML = '';
+
+  const groups = [
+    { label: '✅ Linked to library', items: data.linked, tagClass: 'tag-green', tagText: 'Library' },
+    { label: '⚠️ Detached', items: data.detached, tagClass: 'tag-amber', tagText: 'Detached' },
+    { label: '🔴 Local', items: data.local, tagClass: 'tag-red', tagText: 'Local' },
+  ];
+
+  for (const g of groups) {
+    if (!g.items.length) continue;
+    const hdr = document.createElement('div');
+    hdr.className = 'list-group-header';
+    hdr.textContent = g.label + ' (' + g.items.length + ')';
+    wrap.appendChild(hdr);
+
+    for (const item of g.items) {
+      const row = document.createElement('div');
+      row.className = 'list-item';
+      row.innerHTML = `
+        <span class="item-name" title="${esc(item.name)}">${esc(item.name)}</span>
+        <span class="item-page">${esc(item.page)}</span>
+        <span class="tag ${g.tagClass}">${g.tagText}</span>
+        <button class="btn btn-ghost btn-sm" data-id="${item.id}" data-page="${esc(item.page)}">→</button>
+      `;
+      row.querySelector('button').addEventListener('click', (e) => {
+        const btn = e.currentTarget;
+        parent.postMessage({ pluginMessage: { type: 'zoom-to', nodeId: btn.dataset.id, pageName: btn.dataset.page } }, '*');
+      });
+      wrap.appendChild(row);
+    }
+  }
+
+  if (!wrap.children.length) {
+    wrap.innerHTML = '<div class="empty">No component instances found</div>';
+  }
+
+  hideSpinner('audit');
 }
 
-document.getElementById('cancel').onclick = () => {
-  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
+// ── naming ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-naming').addEventListener('click', () => {
+  showSpinner('naming');
+  parent.postMessage({ pluginMessage: { type: 'naming-check' } }, '*');
+});
+
+function renderNaming(issues) {
+  const wrap = document.getElementById('naming-list');
+  wrap.innerHTML = '';
+
+  if (!issues.length) {
+    wrap.innerHTML = '<div class="empty">No naming issues found 🎉</div>';
+    hideSpinner('naming');
+    return;
+  }
+
+  for (const issue of issues) {
+    const row = document.createElement('div');
+    row.className = 'list-item';
+    row.style.flexDirection = 'column';
+    row.style.alignItems = 'flex-start';
+    row.innerHTML = `
+      <div style="display:flex;width:100%;align-items:center;gap:8px">
+        <span class="item-name" title="${esc(issue.name)}">${esc(issue.name)}</span>
+        <span class="item-page">${esc(issue.page)}</span>
+        <button class="btn btn-ghost btn-sm" data-id="${issue.id}" data-page="${esc(issue.page)}">→</button>
+      </div>
+      <div class="naming-reasons">${issue.reasons.map(r => '• ' + r).join(' &nbsp;')}</div>
+    `;
+    row.querySelector('button').addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      parent.postMessage({ pluginMessage: { type: 'zoom-to', nodeId: btn.dataset.id, pageName: btn.dataset.page } }, '*');
+    });
+    wrap.appendChild(row);
+  }
+
+  hideSpinner('naming');
 }
 
+// ── swap ──────────────────────────────────────────────────────────────────────
+function refreshSelection() {
+  parent.postMessage({ pluginMessage: { type: 'get-selection' } }, '*');
+}
+
+document.getElementById('btn-refresh-sel').addEventListener('click', refreshSelection);
+
+document.getElementById('swap-search').addEventListener('input', (e) => {
+  const q = e.target.value.trim();
+  chosenComponentKey = null;
+  chosenComponentName = null;
+  document.getElementById('btn-swap').disabled = true;
+  if (q.length < 1) {
+    document.getElementById('swap-results').innerHTML = '<div class="empty">Search results appear here</div>';
+    return;
+  }
+  parent.postMessage({ pluginMessage: { type: 'search-components', query: q } }, '*');
+});
+
+function renderSearchResults(components) {
+  const wrap = document.getElementById('swap-results');
+  wrap.innerHTML = '';
+  if (!components.length) {
+    wrap.innerHTML = '<div class="empty">No components found</div>';
+    return;
+  }
+  for (const c of components) {
+    const row = document.createElement('div');
+    row.className = 'list-item';
+    row.style.cursor = 'pointer';
+    row.innerHTML = `
+      <span class="item-name">${esc(c.name)}</span>
+      <span class="tag tag-blue">${esc(c.source)}</span>
+    `;
+    row.addEventListener('click', () => {
+      chosenComponentKey = c.key;
+      chosenComponentName = c.name;
+      wrap.querySelectorAll('.list-item').forEach(r => r.style.background = '');
+      row.style.background = '#e8f4ff';
+      document.getElementById('btn-swap').disabled = selectedNodes.length === 0;
+    });
+    wrap.appendChild(row);
+  }
+}
+
+document.getElementById('btn-swap').addEventListener('click', () => {
+  if (!chosenComponentKey || !selectedNodes.length) return;
+  document.getElementById('swap-result').className = 'swap-result';
+  parent.postMessage({
+    pluginMessage: {
+      type: 'swap',
+      nodeIds: selectedNodes.map(n => n.id),
+      componentKey: chosenComponentKey,
+    }
+  }, '*');
+});
+
+function renderSelection(nodes) {
+  selectedNodes = nodes;
+  const badge = document.getElementById('sel-badge');
+  if (!nodes.length) {
+    badge.innerHTML = 'No nodes selected — select something on canvas first';
+  } else {
+    badge.innerHTML = `<b>${nodes.length}</b> node${nodes.length > 1 ? 's' : ''} selected: ` +
+      nodes.slice(0, 3).map(n => `<b>${esc(n.name)}</b>`).join(', ') +
+      (nodes.length > 3 ? ` + ${nodes.length - 3} more` : '');
+  }
+  document.getElementById('btn-swap').disabled = !(chosenComponentKey && nodes.length > 0);
+}
+
+// ── messages from plugin ──────────────────────────────────────────────────────
+window.onmessage = (event) => {
+  const msg = event.data.pluginMessage;
+  if (!msg) return;
+
+  switch (msg.type) {
+    case 'audit-result':
+      renderAudit(msg);
+      break;
+    case 'naming-result':
+      renderNaming(msg.issues);
+      break;
+    case 'search-result':
+      renderSearchResults(msg.components);
+      break;
+    case 'selection':
+      renderSelection(msg.nodes);
+      break;
+    case 'swap-done': {
+      const el = document.getElementById('swap-result');
+      el.textContent = `✓ Swapped ${msg.swapped} node${msg.swapped !== 1 ? 's' : ''} with "${chosenComponentName}"`;
+      el.className = 'swap-result success';
+      break;
+    }
+    case 'swap-error': {
+      const el = document.getElementById('swap-result');
+      el.textContent = '✗ ' + msg.message;
+      el.className = 'swap-result error';
+      break;
+    }
+  }
+};
+
+// ── utils ─────────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showSpinner(tab) { document.getElementById('spinner-' + tab).classList.add('visible'); }
+function hideSpinner(tab) { document.getElementById('spinner-' + tab).classList.remove('visible'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
 </script>
+</body>
+</html>
